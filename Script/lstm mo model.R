@@ -132,3 +132,4 @@ eval_model(test_data_sim$yt, train_data_sim2$yt, f_rmolstm, h)
 sum(tail(test_data_sim$yt,h))
 abs(sum(f_rmolstm)-sum(tail(test_data_sim$yt,h)))
 
+#test123
