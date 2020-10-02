@@ -27,10 +27,6 @@ eval_model <- function(te_data, tr_data, f_data, h){
 }
 eval_model(test_data_sim$yt, train_data_sim$yt, f_crost_sim_sbj$frc.out, h=28)
 eval_model(test_data_sim$yt, train_data_sim$yt, f_crost_sim_sba$frc.out, h=28)
-
-
-ts.plot(test_data_sim$yt[1797:1825])
-f_crost_sim_sba$frc.out
 abs(sum(f_crost_sim_sba$frc.out)-sum(tail(test_data_sim$yt,28)))
 abs(sum(f_crost_sim_sbj$frc.out)-sum(tail(test_data_sim$yt,28)))
 abs(sum(f_gru)-sum(tail(test_data_sim$yt,28)))
