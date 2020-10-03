@@ -2,12 +2,13 @@ library(tsintermittent)
 library(keras)
 library(greybox)
 
-setwd("E:/NCTU/Thesis Ref/Data/M5/")
-dt=1
-lag=28
+setwd("~/graduate_thesis/Data")
+#set parameters
 h=28
+lag=28
+dt=1
+
 #data preparation
-train_data_sim2 <- data.frame(yt=c(sim2$ts.1[1:(1825-h)]))
 train <- read.csv('df_experiment2.csv', header=T, sep=',');head(train[,5:10])
 test <- read.csv('df_experiment_test2.csv', header=T, sep=',');head(test[,7:10])
 train_data <- data.frame(yt=c(t(train[dt, 5:ncol(train)])))
@@ -131,5 +132,3 @@ f_rmolstm <- undecompose(f_molstm[,2], f_molstm[,1], h);f_rmolstm
 eval_model(test_data_sim$yt, train_data_sim2$yt, f_rmolstm, h)
 sum(tail(test_data_sim$yt,h))
 abs(sum(f_rmolstm)-sum(tail(test_data_sim$yt,h)))
-
-#test123
