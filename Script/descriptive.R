@@ -22,6 +22,12 @@ tsintermittent::idclass(dataset1$yt)
 tsintermittent::idclass(dataset2$yt)
 tsintermittent::idclass(dataset3$yt)
 
+#result gru
+plot(test_data$yt[28:1941], col='blue', type='l', lwd=2, ylab="demand rate", xlab="time/day")
+lines(f_lstm[[2]], col= 'red', lwd=2)
+lines(c(rep(NA, 1885), f_lstm[[1]]), col= 'green', lwd=2)
+
+
 #check demand level
 sum(dataset1$yt)/sum(ifelse(dataset1$yt > 1, 1 , 0))
 sum(dataset2$yt)/sum(ifelse(dataset2$yt > 1, 1 , 0))

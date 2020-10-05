@@ -8,8 +8,8 @@ setwd("~/graduate_thesis/Data/")
 #data preparation
 train <- read.csv('df_experiment2.csv', header=T, sep=',');head(train[,5:10])
 test <- read.csv('df_experiment_test2.csv', header=T, sep=',');head(test[,7:10])
-train_data <- data.frame(yt=c(t(train[3, 5:ncol(train)])))
-test_data <- data.frame(yt=c(t(test[3, 7:ncol(test)])))
+train_data <- data.frame(yt=c(t(train[1, 5:ncol(train)])))
+test_data <- data.frame(yt=c(t(test[1, 7:ncol(test)])))
 lag <- 28
 batch_size <- 32
 verbose <- 0
@@ -91,19 +91,24 @@ model.gru_nonrc <- function(train_data, test_data, features=1, lag=7, batch_size
     )
   
   f_gru <- model_gru %>% predict(x_test_rnn, batch_size=batch_size)
-  f_gru <- f_gru*(max(train_data$yt)-min(train_data$yt)) + min(train_data$yt)
-  return(f_gru)
+  f_gru_test <- f_gru*(max(train_data$yt)-min(train_data$yt)) + min(train_data$yt)
+  f_gru_train <- model_gru %>% predict(x_train_rnn, batch_size=batch_size)
+  f_gru_train <- f_gru_train*(max(train_data$yt)-min(train_data$yt)) + min(train_data$yt)
+  
+  return(list(f_gru_test, f_gru_train))
 }
 
 f_gru <- model.gru_nonrc(train_data=train_data, test_data = test_data, lag=28, batch_size=32,
-                   val_split=NULL, shuffle=F, optimizer='rmsprop', gru_units=128, rec_dropout=0.1, dropout=0.1,
-                   epochs=100, out_act='linear')
+                   val_split=NULL, shuffle=F, optimizer='adam', gru_units=128, rec_dropout=0.1, dropout=0.1,
+                   epochs=100, out_act='sigmoid')
 
 #evaluate model
 eval_model <- function(te_data, tr_data, f_data, h){
   forecast_data <-c(tr_data, f_data)
   return(RMSSE(te_data, forecast_data, h))
 }
+
+eval_model(test_data$yt, train_data$yt, f_gru[[1]], 28)
 
 #parameter tune
 optim <- c('rmsprop', 'adam')
@@ -131,7 +136,7 @@ for(g in gu){
   }
 }
 plot(test_data$yt[1914:1941], type='l', col='blue')
-lines(result.list[[42]], col='red')
+lines(f_gru, col='red')
 sum(f_gru)
 sum(test_data$yt[1914:1941])
 

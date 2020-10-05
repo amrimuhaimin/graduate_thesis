@@ -120,13 +120,15 @@ model.lstm <- function(train_data, test_data, features=1, lag=7, batch_size=32, 
   }
   
   f_lstm <- forecast_lstm(test_keras)
-  f_lstm <- f_lstm*(max(train_data$yt)-min(train_data$yt))+min(train_data$yt)
-  return(f_lstm)
+  f_lstm_test <- f_lstm*(max(train_data$yt)-min(train_data$yt))+min(train_data$yt)
+  f_lstm_train <- model_lstm %>% predict(x_train_rnn)
+  f_lstm_train <- f_lstm_train*(max(train_data$yt)-min(train_data$yt))+min(train_data$yt)
+  return(list(f_lstm_test, f_lstm_train))
 }
 
-f_lstm <- model.lstm(train_data, test_data, lag=28, batch_size=32, optimizer = 'rmsprop', lstm_units = 128,
+f_lstm <- model.lstm(train_data, test_data, lag=28, batch_size=32, optimizer = 'adam', lstm_units = 128,
                      epochs=100, val_split=NULL, shuffle=F, dropout = 0.2, rec_dropout = 0.2,
-                     out_act = 'linear')
+                     out_act = 'sigmoid')
 
 #evaluate model
 eval_model <- function(te_data, tr_data, f_data){
@@ -134,7 +136,7 @@ eval_model <- function(te_data, tr_data, f_data){
   return(RMSSE(te_data, forecast_data, 28))
 }
 
-eval_model(test_data$yt, train_data$yt, f_lstm)
+eval_model(test_data$yt, train_data$yt, f_lstm[[1]], 28)
 
 plot(test_data$yt[1914:1941], type='l', col='red')
-lines(f_lstm, col='blue')
+lines(f_lstm[[1]], col='blue')
