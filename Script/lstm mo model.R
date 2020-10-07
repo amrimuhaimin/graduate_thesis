@@ -4,21 +4,18 @@ library(greybox)
 
 setwd("~/graduate_thesis/Data")
 #set parameters
-h=28
-lag=28
-dt=1
 
 #data preparation
 train <- read.csv('df_experiment2.csv', header=T, sep=',');head(train[,5:10])
 test <- read.csv('df_experiment_test2.csv', header=T, sep=',');head(test[,7:10])
-train_data <- data.frame(yt=c(t(train[dt, 5:ncol(train)])))
-test_data <- data.frame(yt=c(t(test[dt, 7:ncol(test)])))
 
 lstm_mo <- function(h=28, lag=28, train_data, test_data, out_act='linear',
                     dropout=0.2, rec_dropout=0.2, lstm_units=128, optimizer='rmsprop', epochs=100,
-                    batch_size=32, val_split=NULL, verbose=0, shuffle=F){
+                    batch_size=32, val_split=NULL, verbose=0, shuffle=F, dt=1){
+  
   train_data_demand <- as.data.frame(crost.decomp(data.frame(yt=c(t(train[dt, 5:ncol(train)]))), "naive")[1]); colnames(train_data_demand) <- 'yt'
-  train_data_interval <- as.data.frame(crost.decomp(data.frame(yt=c(t(train[dt, 5:ncol(train)]))), 'naive')[2]); colnames(train_data_interval) <- 'yt'
+  train_data_interval <- as.data.frame(crost.decomp(data.frame(yt=c(t(train[1, 5:ncol(train)]))), 'naive')[2]); colnames(train_data_interval) <- 'yt'
+  
   lag_transform <- function(train_data, lag=1){
     matrix_lag <- matrix(nrow=nrow(train_data), ncol=lag)
     colnames(matrix_lag) <- c(LETTERS[1:lag])
@@ -30,6 +27,7 @@ lstm_mo <- function(h=28, lag=28, train_data, test_data, out_act='linear',
     df_lag <- data.frame(yt=c(train_data$yt), matrix_lag)
     return(df_lag)
   }  
+  
   lag_transform2 <- function(trn_data, lag=1, h=28){
     r <- nrow(trn_data)
     matrix_lag <- matrix(nrow=h, ncol=lag)
@@ -42,6 +40,7 @@ lstm_mo <- function(h=28, lag=28, train_data, test_data, out_act='linear',
     df_lag <- data.frame(matrix_lag)
     return(df_lag)
   }
+  
   train_keras_demand <- lag_transform(train_data_demand, lag=lag); train_keras_demand <- train_keras_demand[(1+lag):nrow(train_keras_demand),]
   train_keras_interval <- lag_transform(train_data_interval, lag=lag); train_keras_interval <- train_keras_interval[(1+lag):nrow(train_keras_interval),]
   train_keras_demand <- (train_keras_demand-min(train_data_demand$yt))/(max(train_data_demand$yt)-min(train_data_demand$yt))
@@ -52,6 +51,7 @@ lstm_mo <- function(h=28, lag=28, train_data, test_data, out_act='linear',
   y_train_interval <- as.matrix(train_keras_interval[1:(nrow(train_keras_interval)-h),1])
   test_keras_demand <- lag_transform2(train_keras_demand, lag, h)
   test_keras_interval <- lag_transform2(train_keras_interval, lag, h)
+  
   #reshape training set.
   x_train_abind <- abind::abind(array(x_train_demand, dim=c(nrow(x_train_demand), ncol(x_train_demand), 1)),
                                 array(x_train_interval, dim=c(nrow(x_train_demand), ncol(x_train_demand), 1)))
@@ -69,6 +69,7 @@ lstm_mo <- function(h=28, lag=28, train_data, test_data, out_act='linear',
     compile(metrics="mae",
             loss="mean_squared_error",
             optimizer=optimizer)
+  
   history <- model_molstm %>%
     fit(x=x_train_abind,
         y=y_train_abind,
@@ -77,6 +78,7 @@ lstm_mo <- function(h=28, lag=28, train_data, test_data, out_act='linear',
         shuffle=shuffle,
         batch_size=batch_size,
         verbose=verbose)
+  
   forecast_molstm <- function(h){
     Xdemand <- test_keras_demand
     Xinterval <- test_keras_interval
@@ -93,18 +95,23 @@ lstm_mo <- function(h=28, lag=28, train_data, test_data, out_act='linear',
     }
     return(pred)
   }
+  
   f_molstm <- forecast_molstm(h)
   f_molstm[,1] <- (f_molstm[,1]*(max(train_data_demand$yt)-min(train_data_demand$yt)))+min(train_data_demand)
   f_molstm[,2] <- (f_molstm[,2]*(max(train_data_interval$yt)-min(train_data_interval$yt)))+min(train_data_interval)
   f_molstm_test <- f_molstm
   f_molstm_train <- model_molstm %>% predict(x_train_abind, batch_size=batch_size)
   f_molstm_train[,1] <- (f_molstm_train[,1]*(max(train_data_demand$yt)-min(train_data_demand$yt)))+min(train_data_demand)
-  f_molstm_train[,2] <- (f_molstm_train[,2]*(max(train_data_demand$yt)-min(train_data_demand$yt)))+min(train_data_demand)
+  f_molstm_train[,2] <- (f_molstm_train[,2]*(max(train_data_interval$yt)-min(train_data_interval$yt)))+min(train_data_interval)
+  
   return(list(f_molstm_test, f_molstm_train))
 }
 
-f_molstm <- lstm_mo(h = 28, lag=28, train_data, test_data, out_act='linear', dropout=0.1, rec_dropout=0.1,
-                    lstm_units=64, optimizer='rmsprop')
+f_molstm <- lstm_mo(h=10, lag=10, train_data, test_data, out_act='linear', dropout=0.1, rec_dropout=0.1,
+                    lstm_units=64, optimizer='rmsprop', dt=1)
+
+f_molstm[[2]]
+ts.plot(f_molstm[2])
 
 eval_model <- function(te_data, tr_data, f_data, h){
   forecast_data <-c(tr_data, f_data)
@@ -128,19 +135,27 @@ undecompose <- function(interdemand, demand, h){
 }
 
 
-assembly <- function(){
+assembly <- function(interval, demand){
   v.value <- numeric(0)
-  for(i in 1:nrow(train_data_demand)){
-    if(train_data_interval$yt[i] > 1){
-      value <- c(rep(0, train_data_interval$yt[i]-1), train_data_demand$yt[i])
+  for(i in 1:nrow(demand)){
+    if(round(interval[i]) > 1){
+      value <- c(rep(0, round(interval[i])-1), demand[i])
     } else {
-      value <- train_data_demand$yt[i]
+      value <- demand[i]
     }
     v.value <- c(v.value,value)
   }
   return(v.value)
 }
+
+length(assembly(matrix(f_molstm[[2]][,2]), matrix(f_molstm[[2]][,1])))
+
 f_rmolstm <- undecompose(f_molstm[,2], f_molstm[,1], 28);f_rmolstm
 eval_model(test_data_sim$yt, train_data_sim2$yt, f_rmolstm, h)
 sum(tail(test_data_sim$yt,h))
 abs(sum(f_rmolstm)-sum(tail(test_data_sim$yt,h)))
+
+remove(train_data_interval)
+
+#this model can't perform well
+#i should find another way to decompose and assemble it.
