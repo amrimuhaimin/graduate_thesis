@@ -1,0 +1,6 @@
+this code is about simulation study of intermittent demand time series forecast
+
+author: amrimuhaimin@gmail.com
+date: 29/10/2020
+
+see also Script folder for R script about this research
